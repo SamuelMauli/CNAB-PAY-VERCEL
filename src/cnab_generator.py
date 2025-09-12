@@ -68,8 +68,8 @@ class CNAB240Generator:
             pad_alfa("", 1) +
             pad_alfa(c.name, 30) + pad_alfa("BANCO INTER", 30) + pad_alfa("", 10) +
             pad_num(1, 1) + self._now().strftime("%d%m%Y") + self._now().strftime("%H%M%S") +
-            pad_num(seq_num, 6) + pad_num(c.layout_file, 3) + pad_num(1600, 5) + 
-            pad_alfa("", 20) + pad_alfa("", 20) + pad_alfa("", 29)
+            pad_num(seq_num, 7) + pad_num(c.layout_file, 3) + pad_num(1600, 5) + 
+            pad_alfa("", 20) + pad_alfa("", 20) + pad_alfa("", 28)
         )
         self._add_record(line)
     
@@ -151,7 +151,7 @@ class CNAB240Generator:
             pad_num(idx, 5) + pad_alfa("B", 1) + pad_alfa(forma, 3) + pad_num(tipo_doc, 1) +
             pad_num(recipient.get("document", ""), 14) + 
             pad_alfa(recipient.get("txid", ""), 35) + pad_alfa("", 60) + 
-            pad_alfa(chave, 99) + pad_alfa("", 6) + pad_num("", 8)
+            pad_alfa(chave, 77) + pad_alfa("", 36)
         )
         self._add_record(line)
     

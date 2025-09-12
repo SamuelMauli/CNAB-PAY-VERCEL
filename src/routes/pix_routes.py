@@ -1,4 +1,6 @@
-from flask import Blueprint, request, jsonify, send_file, current_app
+# src/routes/pix_routes.py
+
+from flask import Blueprint, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 import os
 import sys
@@ -6,25 +8,24 @@ from pathlib import Path
 from datetime import datetime
 import logging
 
+# Importa as configurações corrigidas
 import config
 
-# Adicionar diretório src ao path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from excel_processor import ExcelProcessor
 from cnab_generator import CNAB240Generator, Company
 from inter_api import InterAPIClient
 
-# Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 pix_bp = Blueprint('pix', __name__)
 
-# Configurações
-UPLOAD_FOLDER = Path(__file__).parent.parent.parent / "uploads"
-OUTPUT_FOLDER = Path(__file__).parent.parent.parent / "output"
-CERTS_FOLDER = Path(__file__).parent.parent.parent / "certs"
+BASE_DIR = Path(__file__).parent.parent.parent
+UPLOAD_FOLDER = BASE_DIR / "uploads"
+OUTPUT_FOLDER = BASE_DIR / "output"
+CERTS_FOLDER = BASE_DIR / "certs"
 
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 OUTPUT_FOLDER.mkdir(exist_ok=True)
@@ -33,6 +34,7 @@ ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @pix_bp.route('/upload', methods=['POST'])
 def upload_file():
@@ -53,24 +55,20 @@ def upload_file():
             
             file.save(str(filepath))
             
-            # Processar Excel
             processor = ExcelProcessor()
             if not processor.load_excel(str(filepath)):
                 return jsonify({'success': False, 'error': 'Erro ao carregar arquivo Excel'}), 400
             
-            # Detectar colunas
             columns = processor.detect_columns()
             
-            # Validar dados
             is_valid, errors = processor.validate_data()
             if not is_valid:
                 return jsonify({
                     'success': False, 
                     'error': 'Dados inválidos no arquivo',
-                    'details': errors[:10]  # Primeiros 10 erros
+                    'details': errors[:10]
                 }), 400
             
-            # Processar dados
             recipients = processor.process_data()
             summary = processor.get_summary()
             
@@ -78,7 +76,7 @@ def upload_file():
                 'success': True,
                 'filename': filename,
                 'summary': summary,
-                'recipients': recipients[:10],  # Primeiros 10 para preview
+                'recipients': recipients[:10],
                 'total_recipients': len(recipients)
             })
         
@@ -102,13 +100,11 @@ def generate_cnab():
         if not filepath.exists():
             return jsonify({'success': False, 'error': 'Arquivo não encontrado'}), 404
         
-        # Reprocessar dados
         processor = ExcelProcessor()
         processor.load_excel(str(filepath))
         processor.detect_columns()
         recipients = processor.process_data()
         
-        # Configurar empresa
         company = Company( 
             bank_code=config.BANK_CODE,
             agency=config.AGENCY,
@@ -119,7 +115,6 @@ def generate_cnab():
             cnpj=config.COMPANY_CNPJ
         ) 
 
-        # MODIFIED: Ensure we search for lowercase .rem files. This part is already correct.
         existing_files = list(OUTPUT_FOLDER.glob("*.rem"))
         sequential_number = len(existing_files) + 1
         
@@ -128,15 +123,12 @@ def generate_cnab():
         generator = CNAB240Generator(company)
         cnab_content = generator.generate_pix_file(recipients, sequential_number)
         
-        # Salvar arquivo
-        # MODIFIED: Changed the extension to lowercase ".rem" to match the search glob.
         cnab_filename = f"CI240_001_{formatted_sequential}.rem"
         cnab_filepath = OUTPUT_FOLDER / cnab_filename
         
-        with open(cnab_filepath, 'w', encoding='ascii') as f: # Added encoding for safety
+        with open(cnab_filepath, 'w', encoding='ascii') as f:
             f.write(cnab_content)
         
-        # Calcular totais
         total_amount = sum(float(r['amount']) for r in recipients)
         
         return jsonify({
@@ -165,24 +157,24 @@ def download_file(filename):
         logger.error(f"Erro no download: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@pix_bp.route('/test-api', methods=['GET']) 
-def test_api(): 
-    """Testa conectividade com API do Banco Inter""" 
-    try: 
-        client = InterAPIClient( 
+@pix_bp.route('/test-api', methods=['GET'])
+def test_api():
+    """Testa conectividade com API do Banco Inter"""
+    try:
+        cert_path = str(CERTS_FOLDER / config.CERT_PATH)
+        client = InterAPIClient(
             client_id=config.CLIENT_ID,
             client_secret=config.CLIENT_SECRET,
-            cert_path=str(CERTS_FOLDER / config.CERT_PATH),
+            cert_path=cert_path,
             key_path=str(CERTS_FOLDER / config.KEY_PATH),
-            base_url="https://cdpj.partners.bancointer.com.br"
-        ) 
-        
-        result = client.test_connection() 
-        return jsonify(result) 
-        
-    except Exception as e: 
-        logger.error(f"Erro no teste da API: {str(e)}") 
-        return jsonify({'success': False, 'error': str(e)}), 500 
+            base_url=config.BASE_URL,
+            scopes=config.SCOPES
+        )
+        result = client.test_connection()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Erro no teste da API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @pix_bp.route('/process-payments', methods=['POST'])
 def process_payments():
@@ -198,22 +190,21 @@ def process_payments():
         if not filepath.exists():
             return jsonify({'success': False, 'error': 'Arquivo não encontrado'}), 404
         
-        # Processar dados
         processor = ExcelProcessor()
         processor.load_excel(str(filepath))
         processor.detect_columns()
         recipients = processor.process_data()
         
-        # Configurar cliente da API
-        client = InterAPIClient( 
+        cert_path = str(CERTS_FOLDER / config.CERT_PATH)
+        client = InterAPIClient(
             client_id=config.CLIENT_ID,
             client_secret=config.CLIENT_SECRET,
-            cert_path=str(CERTS_FOLDER / config.CERT_PATH),
+            cert_path=cert_path,
             key_path=str(CERTS_FOLDER / config.KEY_PATH),
-            base_url="https://cdpj.partners.bancointer.com.br"
-        ) 
+            base_url=config.BASE_URL,
+            scopes=config.SCOPES
+        )
         
-        # Processar pagamentos
         results = []
         for recipient in recipients:
             payment_data = {
@@ -279,4 +270,3 @@ def list_files():
     except Exception as e:
         logger.error(f"Erro ao listar arquivos: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
