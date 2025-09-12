@@ -4,20 +4,21 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any
 import logging
-import certifi # <--- ADICIONE ESTA LINHA
+import certifi
 
 logger = logging.getLogger(__name__)
 
 class InterAPIClient:
     """Cliente para integração com API PIX do Banco Inter"""
 
-    def __init__(self, client_id: str, client_secret: str, cert_path: str, key_path: str, base_url: str, scopes: str): # <--- REMOVA verify_path
+    def __init__(self, client_id: str, client_secret: str, cert_path: str, key_path: str, base_url: str, scopes: str, conta_corrente: str):
         self.client_id = client_id
         self.client_secret = client_secret
         self.cert_path = cert_path
         self.key_path = key_path
         self.base_url = base_url
         self.scopes = scopes
+        self.conta_corrente = conta_corrente.replace('-', '') # Garante que a conta não tenha o dígito
         self.token_url = f"{base_url}/oauth/v2/token"
         self.pix_url = f"{base_url}/banking/v2/pix"
         self.access_token = None
@@ -59,7 +60,7 @@ class InterAPIClient:
                 headers=headers,
                 data=data,
                 cert=(self.cert_path, self.key_path),
-                verify=certifi.where(), # <--- ALTERE ESTA LINHA
+                verify=certifi.where(),
                 timeout=30
             )
 
@@ -90,10 +91,11 @@ class InterAPIClient:
         try:
             headers = {
                 "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "x-inter-conta-corrente": self.conta_corrente
             }
             payment_data = {
-                "valor": recipient_data["amount"],
+                "valor": f"{recipient_data['amount']:.2f}",
                 "destinatario": {
                     "nome": recipient_data["name"],
                     "cpfCnpj": recipient_data["document"],
@@ -101,17 +103,21 @@ class InterAPIClient:
                 },
                 "descricao": f"Pagamento para {recipient_data['name']}"
             }
+            
+            # --- LINHA CORRIGIDA ---
             response = requests.post(
-                f"{self.pix_url}/pix",
+                self.pix_url, # AQUI ESTAVA O ERRO: f"{self.pix_url}/pix"
                 headers=headers,
                 json=payment_data,
                 cert=(self.cert_path, self.key_path),
-                verify=certifi.where(), # <--- ALTERE ESTA LINHA
+                verify=certifi.where(),
                 timeout=30
             )
+            # --- FIM DA CORREÇÃO ---
+            
             if response.status_code in [200, 201]:
                 result = response.json()
-                logger.info(f"Pagamento PIX criado com sucesso: {result.get('id', 'N/A')}")
+                logger.info(f"Pagamento PIX criado com sucesso: {result.get('endToEndId', 'N/A')}")
                 return {"success": True, "data": result}
             else:
                 logger.error(f"Erro ao criar pagamento PIX: {response.status_code} - {response.text}")
@@ -127,15 +133,20 @@ class InterAPIClient:
         try:
             headers = {
                 "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "x-inter-conta-corrente": self.conta_corrente
             }
+
+            # --- LINHA CORRIGIDA ---
             response = requests.get(
-                f"{self.pix_url}/pagamentos/{payment_id}",
+                f"{self.pix_url}/{payment_id}", # AQUI ESTAVA O ERRO: f"{self.pix_url}/pagamentos/{payment_id}"
                 headers=headers,
                 cert=(self.cert_path, self.key_path),
-                verify=certifi.where(), # <--- ALTERE ESTA LINHA
+                verify=certifi.where(),
                 timeout=30
             )
+            # --- FIM DA CORREÇÃO ---
+
             if response.status_code == 200:
                 result = response.json()
                 return {"success": True, "data": result}

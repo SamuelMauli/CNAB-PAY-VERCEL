@@ -168,7 +168,8 @@ def test_api():
             cert_path=cert_path,
             key_path=str(CERTS_FOLDER / config.KEY_PATH),
             base_url=config.BASE_URL,
-            scopes=config.SCOPES
+            scopes=config.SCOPES,
+            conta_corrente=config.ACCOUNT  # Adicione esta linha
         )
         result = client.test_connection()
         return jsonify(result)
@@ -202,7 +203,8 @@ def process_payments():
             cert_path=cert_path,
             key_path=str(CERTS_FOLDER / config.KEY_PATH),
             base_url=config.BASE_URL,
-            scopes=config.SCOPES
+            scopes=config.SCOPES,
+            conta_corrente=config.ACCOUNT  # Adicione esta linha
         )
         
         results = []
