@@ -1,4 +1,12 @@
+# Arquivos de ambiente
 .env
 venv/
+
+# Pastas de dados
 output/
-upload/
+uploads/
+database/
+
+# Arquivos compilados do Python
+__pycache__/
+*.pyc

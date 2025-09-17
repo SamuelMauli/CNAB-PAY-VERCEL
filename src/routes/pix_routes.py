@@ -1,5 +1,3 @@
-# src/routes/pix_routes.py
-
 from flask import Blueprint, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 import os
@@ -8,16 +6,16 @@ from pathlib import Path
 from datetime import datetime
 import logging
 
-# Importa as configurações corrigidas
+# Adiciona o diretório 'src' ao path para importações corretas
+sys.path.append(str(Path(__file__).parent.parent))
+
 import config
-
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
 from excel_processor import ExcelProcessor
 from cnab_generator import CNAB240Generator, Company
 from inter_api import InterAPIClient
 
-logging.basicConfig(level=logging.INFO)
+# Configura o logging usando a variável do config.py
+logging.basicConfig(level=config.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
 pix_bp = Blueprint('pix', __name__)
@@ -31,6 +29,25 @@ UPLOAD_FOLDER.mkdir(exist_ok=True)
 OUTPUT_FOLDER.mkdir(exist_ok=True)
 
 ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
+
+def get_inter_client():
+    """Cria e retorna uma instância do cliente da API do Inter."""
+    # Garante que os caminhos para os certificados sejam absolutos e seguros
+    cert_path = CERTS_FOLDER / config.CERT_PATH
+    key_path = CERTS_FOLDER / config.KEY_PATH
+    
+    if not cert_path.exists() or not key_path.exists():
+        raise FileNotFoundError("Certificado ou chave não encontrados na pasta 'certs'.")
+
+    return InterAPIClient(
+        client_id=config.CLIENT_ID,
+        client_secret=config.CLIENT_SECRET,
+        cert_path=str(cert_path),
+        key_path=str(key_path),
+        base_url=config.BASE_URL,
+        scopes=config.SCOPES,
+        conta_corrente=config.ACCOUNT
+    )
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -84,7 +101,69 @@ def upload_file():
         
     except Exception as e:
         logger.error(f"Erro no upload: {str(e)}")
+        # Em produção, evite expor o erro diretamente
+        return jsonify({'success': False, 'error': "Ocorreu um erro interno no servidor."}), 500
+
+@pix_bp.route('/process-payments', methods=['POST'])
+def process_payments():
+    """Processa pagamentos PIX via API do Banco Inter"""
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        
+        if not filename:
+            return jsonify({'success': False, 'error': 'Nome do arquivo não fornecido'}), 400
+        
+        filepath = UPLOAD_FOLDER / filename
+        if not filepath.exists():
+            return jsonify({'success': False, 'error': 'Arquivo não encontrado'}), 404
+        
+        processor = ExcelProcessor()
+        processor.load_excel(str(filepath))
+        processor.detect_columns()
+        recipients = processor.process_data()
+        
+        client = get_inter_client()
+        
+        results = []
+        for recipient in recipients:
+            payment_data = {
+                "name": recipient["name"],
+                "document": recipient["document"],
+                "pix_key": recipient["pix_key"],
+                "amount": recipient["amount"]
+            }
+            
+            # --- CORREÇÃO AQUI ---
+            # O nome da função foi atualizado para corresponder ao inter_api.py
+            result = client.create_recorrencia(payment_data)
+            # --- FIM DA CORREÇÃO ---
+
+            results.append({
+                "recipient": recipient["name"],
+                "amount": recipient["amount"],
+                "success": result["success"],
+                "error": result.get("error", ""),
+                "payment_id": result.get("data", {}).get("idRec", "") # Atualizado para 'idRec'
+            })
+        
+        successful = sum(1 for r in results if r["success"])
+        failed = len(results) - successful
+        
+        return jsonify({
+            'success': True,
+            'total_processed': len(results),
+            'successful': successful,
+            'failed': failed,
+            'results': results
+        })
+        
+    except FileNotFoundError as e:
+        logger.error(str(e))
         return jsonify({'success': False, 'error': str(e)}), 500
+    except Exception as e:
+        logger.error(f"Erro ao processar pagamentos: {str(e)}")
+        return jsonify({'success': False, 'error': "Ocorreu um erro interno no servidor."}), 500
 
 @pix_bp.route('/generate-cnab', methods=['POST'])
 def generate_cnab():
@@ -141,7 +220,7 @@ def generate_cnab():
         
     except Exception as e:
         logger.error(f"Erro ao gerar CNAB: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': "Ocorreu um erro interno no servidor."}), 500
     
 @pix_bp.route('/download/<filename>')
 def download_file(filename):
@@ -155,90 +234,21 @@ def download_file(filename):
         
     except Exception as e:
         logger.error(f"Erro no download: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': "Ocorreu um erro interno no servidor."}), 500
 
 @pix_bp.route('/test-api', methods=['GET'])
 def test_api():
     """Testa conectividade com API do Banco Inter"""
     try:
-        cert_path = str(CERTS_FOLDER / config.CERT_PATH)
-        client = InterAPIClient(
-            client_id=config.CLIENT_ID,
-            client_secret=config.CLIENT_SECRET,
-            cert_path=cert_path,
-            key_path=str(CERTS_FOLDER / config.KEY_PATH),
-            base_url=config.BASE_URL,
-            scopes=config.SCOPES,
-            conta_corrente=config.ACCOUNT  # Adicione esta linha
-        )
+        client = get_inter_client()
         result = client.test_connection()
         return jsonify(result)
+    except FileNotFoundError as e:
+        logger.error(str(e))
+        return jsonify({'success': False, 'error': str(e)}), 500
     except Exception as e:
         logger.error(f"Erro no teste da API: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@pix_bp.route('/process-payments', methods=['POST'])
-def process_payments():
-    """Processa pagamentos PIX via API do Banco Inter"""
-    try:
-        data = request.get_json()
-        filename = data.get('filename')
-        
-        if not filename:
-            return jsonify({'success': False, 'error': 'Nome do arquivo não fornecido'}), 400
-        
-        filepath = UPLOAD_FOLDER / filename
-        if not filepath.exists():
-            return jsonify({'success': False, 'error': 'Arquivo não encontrado'}), 404
-        
-        processor = ExcelProcessor()
-        processor.load_excel(str(filepath))
-        processor.detect_columns()
-        recipients = processor.process_data()
-        
-        cert_path = str(CERTS_FOLDER / config.CERT_PATH)
-        client = InterAPIClient(
-            client_id=config.CLIENT_ID,
-            client_secret=config.CLIENT_SECRET,
-            cert_path=cert_path,
-            key_path=str(CERTS_FOLDER / config.KEY_PATH),
-            base_url=config.BASE_URL,
-            scopes=config.SCOPES,
-            conta_corrente=config.ACCOUNT  # Adicione esta linha
-        )
-        
-        results = []
-        for recipient in recipients:
-            payment_data = {
-                "name": recipient["name"],
-                "document": recipient["document"],
-                "pix_key": recipient["pix_key"],
-                "amount": recipient["amount"]
-            }
-            
-            result = client.create_pix_payment(payment_data)
-            results.append({
-                "recipient": recipient["name"],
-                "amount": recipient["amount"],
-                "success": result["success"],
-                "error": result.get("error", ""),
-                "payment_id": result.get("data", {}).get("id", "")
-            })
-        
-        successful = sum(1 for r in results if r["success"])
-        failed = len(results) - successful
-        
-        return jsonify({
-            'success': True,
-            'total_processed': len(results),
-            'successful': successful,
-            'failed': failed,
-            'results': results
-        })
-        
-    except Exception as e:
-        logger.error(f"Erro ao processar pagamentos: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': "Ocorreu um erro interno no servidor."}), 500
 
 @pix_bp.route('/files', methods=['GET'])
 def list_files():
@@ -246,7 +256,7 @@ def list_files():
     try:
         uploads = []
         if UPLOAD_FOLDER.exists():
-            for file in UPLOAD_FOLDER.glob("*.xlsx"):
+            for file in sorted(UPLOAD_FOLDER.glob("*.xlsx"), key=os.path.getmtime, reverse=True):
                 stat = file.stat()
                 uploads.append({
                     'filename': file.name,
@@ -256,7 +266,7 @@ def list_files():
         
         outputs = []
         if OUTPUT_FOLDER.exists():
-            for file in OUTPUT_FOLDER.glob("*.rem"):
+            for file in sorted(OUTPUT_FOLDER.glob("*.rem"), key=os.path.getmtime, reverse=True):
                 stat = file.stat()
                 outputs.append({
                     'filename': file.name,
@@ -271,4 +281,4 @@ def list_files():
         
     except Exception as e:
         logger.error(f"Erro ao listar arquivos: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': "Ocorreu um erro interno no servidor."}), 500
