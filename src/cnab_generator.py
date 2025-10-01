@@ -88,16 +88,36 @@ class CNAB240Generator:
         self.lote_seq += 1
         c = self.company
         line = (
-            pad_num(c.bank_code, 3) + pad_num(self.lote_seq, 4) + pad_num(1, 1) + 
-            pad_alfa("C", 1) + pad_num(20, 2) + pad_num(45, 2) + pad_num(c.layout_lote, 3) + 
-            pad_alfa("", 1) + pad_num(2, 1) + pad_num(c.cnpj, 14) + pad_alfa("", 20) +
-            pad_num(c.agency, 5) + pad_alfa(c.agency_dv, 1) + pad_num(c.account, 12) + pad_num(c.account_dv, 1) +
-            pad_alfa(c.name, 30) +
-            pad_alfa("", 40) + pad_alfa("", 30) + pad_num(0, 5) + pad_alfa("", 15) + 
-            pad_alfa("", 20) + pad_num(0, 5) + pad_num(0, 3) + pad_alfa("", 2) + 
-            pad_alfa("", 8) + pad_alfa("", 10)
-
+            pad_num(c.bank_code, 3) +                      # 001-003: Código do banco
+            pad_num(self.lote_seq, 4) +                    # 004-007: Lote de serviço
+            pad_num(1, 1) +                                # 008-008: Tipo de registro
+            pad_alfa("C", 1) +                             # 009-009: Tipo de operação
+            pad_num(20, 2) +                               # 010-011: Tipo de serviço
+            pad_num(45, 2) +                               # 012-013: Forma de lançamento
+            pad_num(c.layout_lote, 3) +                    # 014-016: Layout do lote
+            pad_alfa("", 1) +                              # 017-017: Brancos
+            pad_num(2, 1) +                                # 018-018: Tipo de inscrição
+            pad_num(c.cnpj, 14) +                          # 019-032: CNPJ
+            pad_alfa("", 20) +                             # 033-052: Brancos
+            pad_num(c.agency, 5) +                         # 053-057: Agência
+            pad_alfa(c.agency_dv, 1) +                     # 058-058: DV agência
+            pad_num(c.account, 12) +                       # 059-070: Conta
+            pad_num(c.account_dv, 1) +                     # 071-071: DV conta
+            pad_alfa(c.name, 30) +                         # 072-101: Nome da empresa
+            pad_alfa("", 40) +                             # 102-141: Brancos
+            pad_alfa("", 30) +                             # 142-171: Brancos
+            pad_num(0, 5) +                                # 172-176: Zeros
+            pad_alfa("", 15) +                             # 177-191: Brancos
+            pad_alfa("", 20) +                             # 192-211: Brancos
+            pad_num(0, 5) +                                # 212-216: Zeros
+            pad_num(0, 3) +                                # 217-219: Zeros
+            pad_alfa("", 2) +                              # 220-221: Brancos
+            pad_alfa("", 8) +                              # 222-229: Brancos
+            pad_alfa("", 11)                               # 230-240: Brancos (corrigido para 11)
         )
+        
+        # Verificar se tem exatamente 240 posições
+        assert len(line) == 240, f"Header lote deve ter 240 posições, got {len(line)}"
         self._add_record(line)
 
     
@@ -117,21 +137,39 @@ class CNAB240Generator:
         data_efetivacao = date.today().strftime("%d%m%Y")
         
         line = (
-            pad_num(self.company.bank_code, 3) + pad_num(self.lote_seq, 4) + pad_num(3, 1) + 
-            pad_num(idx, 5) + pad_alfa("A", 1) + pad_num(0, 1) + pad_num("00", 2) + 
-            pad_num("000", 3) + pad_num("000", 3) + pad_num("00000", 5) + pad_num("0", 1) + 
-            pad_num("000000000000", 12) + pad_num("0", 1) + pad_alfa("", 1) +
-            pad_alfa(recipient.get("name", ""), 30) + 
-            pad_alfa(recipient.get("document", ""), 20) +
-            data_pag.strftime("%d%m%Y") + pad_alfa("BRL", 3) + pad_num(0, 15) + 
-            pad_num(valor_cents, 15) + pad_alfa("", 20) + data_efetivacao + 
-            pad_num(only_digits(recipient.get("document", "")), 14) + 
-            pad_num("", 8) + pad_num("01", 2) + pad_alfa("", 29) + pad_alfa("", 10)
+            pad_num(self.company.bank_code, 3) +           # 001-003: Código do banco
+            pad_num(self.lote_seq, 4) +                    # 004-007: Lote de serviço
+            pad_num(3, 1) +                                # 008-008: Tipo de registro
+            pad_num(idx, 5) +                              # 009-013: Número sequencial
+            pad_alfa("A", 1) +                             # 014-014: Código segmento
+            pad_num(0, 1) +                                # 015-015: Tipo de movimento
+            pad_num("00", 2) +                             # 016-017: Código de movimento
+            pad_num("000", 3) +                            # 018-020: Banco favorecido
+            pad_num("000", 3) +                            # 021-023: Agência favorecida
+            pad_num("00000", 5) +                          # 024-028: Conta favorecida
+            pad_num("0", 1) +                              # 029-029: DV conta favorecida
+            pad_num("000000000000", 12) +                  # 030-041: Conta complementar
+            pad_num("0", 1) +                              # 042-042: DV conta complementar
+            pad_alfa("", 1) +                              # 043-043: Brancos
+            pad_alfa(recipient.get("name", ""), 30) +      # 044-073: Nome favorecido
+            pad_alfa(recipient.get("document", ""), 20) +  # 074-093: Número documento favorecido
+            data_pag.strftime("%d%m%Y") +                  # 094-101: Data pagamento
+            pad_alfa("BRL", 3) +                           # 102-104: Tipo moeda
+            pad_num(0, 15) +                               # 105-119: Quantidade moeda
+            pad_num(valor_cents, 15) +                     # 120-134: Valor pagamento
+            pad_alfa("", 20) +                             # 135-154: Número documento empresa
+            data_efetivacao +                              # 155-162: Data real efetivação
+            pad_num(only_digits(recipient.get("document", "")), 14) + # 163-176: Valor real efetivação
+            pad_alfa("", 8) +                              # 177-184: Brancos
+            pad_num("01", 2) +                             # 185-186: Finalidade
+            pad_alfa("", 29) +                             # 187-215: Complemento finalidade
+            pad_alfa("", 3) +                              # 216-218: Brancos
+            pad_alfa("", 6) +                              # 219-224: Aviso favorecido
+            pad_alfa("", 16)                               # 225-240: Código ISPB
         )
-        if len(line) < 240:
-            line = line + pad_alfa("", 240 - len(line))
-        elif len(line) > 240:
-            line = line[:240]
+        
+        # Verificar se tem exatamente 240 posições
+        assert len(line) == 240, f"Registro deve ter 240 posições, got {len(line)}"
         self._add_record(line)
     
     def segmento_b_pix(self, idx: int, recipient: Dict[str, str]):
@@ -191,7 +229,7 @@ class CNAB240Generator:
         # Trailer do arquivo
         self.trailer_arquivo(1)  # 1 lote
         
-        return "\n".join(self.records) + "\n"
+        return "\n".join(self.records)
     
     def validate_recipient(self, recipient: Dict[str, Any]) -> List[str]:
         """Valida dados do beneficiário"""

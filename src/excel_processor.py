@@ -121,18 +121,31 @@ class ExcelProcessor:
                 else:
                     recipient["pix_key"] = str(pix_key).strip()
                 
-                # Documento (CPF/CNPJ) - pode estar na chave PIX ou coluna separada
+                # Documento (CPF/CNPJ) - lógica especial para planilha PagamentosCondor3
                 if "document" in self.mapped_columns:
-                    doc = row.get(self.mapped_columns["document"])
-                    if not pd.isna(doc):
-                        recipient["document"] = str(doc).strip()
-                    else:
-                        # Tentar extrair da chave PIX se for numérica
+                    doc_type = row.get(self.mapped_columns["document"])
+                    doc_type_str = str(doc_type).strip().upper() if not pd.isna(doc_type) else ""
+                    
+                    # Se a coluna contém o tipo (CPF, CNPJ, Telefone), extrair documento da chave PIX
+                    if doc_type_str in ["CPF", "CNPJ", "TELEFONE"]:
+                        # Extrair apenas dígitos da chave PIX
                         pix_digits = "".join(c for c in recipient["pix_key"] if c.isdigit())
                         if len(pix_digits) in [11, 14]:  # CPF ou CNPJ
                             recipient["document"] = pix_digits
                         else:
                             recipient["document"] = ""
+                    else:
+                        # Se contém o documento real, usar diretamente
+                        pix_digits = "".join(c for c in doc_type_str if c.isdigit())
+                        if len(pix_digits) in [11, 14]:
+                            recipient["document"] = pix_digits
+                        else:
+                            # Tentar extrair da chave PIX
+                            pix_digits = "".join(c for c in recipient["pix_key"] if c.isdigit())
+                            if len(pix_digits) in [11, 14]:
+                                recipient["document"] = pix_digits
+                            else:
+                                recipient["document"] = ""
                 else:
                     # Tentar extrair da chave PIX
                     pix_digits = "".join(c for c in recipient["pix_key"] if c.isdigit())
