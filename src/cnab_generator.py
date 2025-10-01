@@ -68,7 +68,7 @@ class CNAB240Generator:
             pad_alfa("", 1) +
             pad_alfa(c.name, 30) + pad_alfa("BANCO INTER", 30) + pad_alfa("", 10) +
             pad_num(1, 1) + self._now().strftime("%d%m%Y") + self._now().strftime("%H%M%S") +
-            pad_num(seq_num, 7) + pad_num(c.layout_file, 3) + pad_num(1600, 5) + 
+            pad_num(seq_num, 7) + pad_num(c.layout_file, 3) + pad_num(0, 5) + 
             pad_alfa("", 20) + pad_alfa("", 20) + pad_alfa("", 28)
         )
         self._add_record(line)
@@ -90,13 +90,15 @@ class CNAB240Generator:
             pad_num(c.bank_code, 3) + pad_num(self.lote_seq, 4) + pad_num(1, 1) + 
             pad_alfa("C", 1) + pad_num(20, 2) + pad_num(45, 2) + pad_num(c.layout_lote, 3) + 
             pad_alfa("", 1) + pad_num(2, 1) + pad_num(c.cnpj, 14) + pad_alfa("", 20) +
-            pad_num(c.agency, 5) + pad_num(c.agency_dv, 1) + pad_num(c.account, 13) + 
-            pad_alfa("", 1) + pad_alfa(c.name, 30) +
+            pad_num(c.agency, 5) + pad_alfa(c.agency_dv, 1) + pad_num(c.account, 12) + pad_num(c.account_dv, 1) +
+            pad_alfa(c.name, 30) +
             pad_alfa("", 40) + pad_alfa("", 30) + pad_num(0, 5) + pad_alfa("", 15) + 
             pad_alfa("", 20) + pad_num(0, 5) + pad_num(0, 3) + pad_alfa("", 2) + 
             pad_alfa("", 8) + pad_alfa("", 10)
+
         )
         self._add_record(line)
+
     
     def trailer_lote(self, soma_valores_cents: int, qtd_registros_detalhe: int):
         """Gera trailer do lote"""
