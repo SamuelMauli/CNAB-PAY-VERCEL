@@ -62,14 +62,15 @@ class CNAB240Generator:
         """Gera header do arquivo"""
         c = self.company
         line = (
-            pad_num(c.bank_code, 3) + pad_num(0, 4) + pad_num(0, 1) + pad_alfa("", 9) +
-            pad_num(2, 1) + pad_num(c.cnpj, 14) + pad_alfa("", 20) +
-            pad_num(c.agency, 5) + pad_alfa(c.agency_dv, 1) + pad_num(c.account, 13) + 
-            pad_alfa("", 1) +
-            pad_alfa(c.name, 30) + pad_alfa("BANCO INTER", 30) + pad_alfa("", 10) +
-            pad_num(1, 1) + self._now().strftime("%d%m%Y") + self._now().strftime("%H%M%S") +
+            pad_num(c.bank_code, 3) + pad_num(0, 4) + pad_num(0, 1) + pad_alfa("", 9) + 
+            pad_num(2, 1) + pad_num(c.cnpj, 14) + pad_alfa("", 20) + 
+            pad_num(c.agency, 5) + pad_alfa(c.agency_dv, 1) + pad_num(c.account, 12) + pad_num(c.account_dv, 1) + 
+            pad_alfa("", 1) + 
+            pad_alfa(c.name, 30) + pad_alfa("BANCO INTER", 30) + pad_alfa("", 10) + 
+            pad_num(1, 1) + self._now().strftime("%d%m%Y") + self._now().strftime("%H%M%S") + 
             pad_num(seq_num, 7) + pad_num(c.layout_file, 3) + pad_num(0, 5) + 
             pad_alfa("", 20) + pad_alfa("", 20) + pad_alfa("", 28)
+        
         )
         self._add_record(line)
     
