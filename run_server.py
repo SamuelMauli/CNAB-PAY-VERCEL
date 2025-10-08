@@ -1,3 +1,5 @@
+# run_server.py (versão corrigida)
+
 import os
 import sys
 from flask import Flask, send_from_directory
@@ -10,9 +12,15 @@ load_dotenv()
 # Adiciona o diretório 'src' ao path para encontrar os módulos
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
 
+# Importa nossa função de ajuda para encontrar os caminhos corretos
+from utils import resource_path
+
 def create_app():
     """Cria e configura a instância da aplicação Flask."""
-    app = Flask(__name__, static_folder='src/static')
+    
+    # Define o caminho absoluto para a pasta 'static' usando nossa função
+    static_dir = resource_path('src/static')
+    app = Flask(__name__, static_folder=static_dir)
 
     # Importa as configurações do src/config.py
     import config
@@ -35,6 +43,7 @@ def create_app():
         if path != "" and os.path.exists(os.path.join(static_folder, path)):
             return send_from_directory(static_folder, path)
         else:
+            # Esta verificação agora vai funcionar corretamente
             return send_from_directory(static_folder, 'index.html')
 
     return app

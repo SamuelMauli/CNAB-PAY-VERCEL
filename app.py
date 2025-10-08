@@ -5,7 +5,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 
-app = Flask(__name__, static_folder='src/static')
+static_dir = resource_path('src/static')
+app = Flask(__name__, static_folder=static_dir)
 app.config['SECRET_KEY'] = 'vanlink-pix-system-2024'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 CORS(app)
