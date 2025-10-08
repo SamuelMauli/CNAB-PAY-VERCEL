@@ -20,8 +20,9 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 BASE_URL = os.getenv("BASE_URL")
 CLIENT_ID = os.getenv("BANCO_INTER_CLIENT_ID")
 CLIENT_SECRET = os.getenv("BANCO_INTER_CLIENT_SECRET")
-CERT_PATH = os.getenv("BANCO_INTER_CERT_PATH")
-KEY_PATH = os.getenv("BANCO_INTER_KEY_PATH")
+# Caminhos dos certificados (podem ser configurados via variáveis de ambiente ou usar diretório temporário)
+CERT_PATH = os.getenv("BANCO_INTER_CERT_PATH", os.path.join(os.getenv('CERTS_DIR', 'certs'), 'inter.crt'))
+KEY_PATH = os.getenv("BANCO_INTER_KEY_PATH", os.path.join(os.getenv('CERTS_DIR', 'certs'), 'inter.key'))
 SCOPES = os.getenv("BANCO_INTER_SCOPES")
 
 

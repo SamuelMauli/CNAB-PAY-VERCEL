@@ -25,8 +25,9 @@ def resource_path(relative_path):
         base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     return os.path.join(base_path, relative_path)
 
-UPLOAD_FOLDER = Path(resource_path("uploads"))
-OUTPUT_FOLDER = Path(resource_path("output"))
+# Usar diretórios temporários configurados no app.py
+UPLOAD_FOLDER = Path(os.getenv('UPLOADS_DIR', resource_path("uploads")))
+OUTPUT_FOLDER = Path(os.getenv('OUTPUTS_DIR', resource_path("output")))
 
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 OUTPUT_FOLDER.mkdir(exist_ok=True)
