@@ -87,9 +87,8 @@ def serve(path):
     else:
         return send_from_directory(app.static_folder, 'index.html')
 
-# Para Vercel
-def handler(request):
-    return app(request.environ, request.start_response)
+# Para Vercel - exporta a aplicação diretamente
+application = app
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
