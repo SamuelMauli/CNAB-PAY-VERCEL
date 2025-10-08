@@ -102,3 +102,4 @@ CNAB-PAY-VERCEL/
 - Implemente backup dos certificados em local seguro
 - Configure monitoramento e alertas
 - Considere usar um banco de dados externo para logs e auditoria
+# Deploy trigger
